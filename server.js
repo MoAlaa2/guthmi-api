@@ -6,7 +6,15 @@ console.log(" ^=^z^` SERVER FILE LOADED");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://guthmi.site",
+    "https://www.guthmi.site"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
