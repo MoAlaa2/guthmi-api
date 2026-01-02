@@ -131,7 +131,9 @@ app.get('/api/team', (req, res) => {
    INTERNAL NOTIFICATIONS
 ======================= */
 app.get('/api/internal-notifications', (req, res) => {
-  res.json(internalNotifications);
+  res.json({
+    notifications: internalNotifications
+  });
 });
 
 /* =======================
@@ -142,7 +144,9 @@ app.get('/api/conversations', (req, res) => {
 });
 
 app.get('/api/conversations/:id/messages', (req, res) => {
-  res.json(messages[req.params.id] || []);
+  res.json({
+    messages: messages[req.params.id] || []
+  });
 });
 
 app.post('/api/conversations/:id/messages', async (req, res) => {
