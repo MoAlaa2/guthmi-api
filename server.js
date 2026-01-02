@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 
 // Fix for missing node types in some environments
-declare const require: any;
-declare const module: any;
+//declare const require: any;
+//declare const module: any;
 
 dotenv.config();
 
@@ -606,9 +606,9 @@ app.get('/api/products', (req: any, res: any) => {
 });
 
 // --- SERVER START ---
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
     console.log(`📦 Database initialized with ${DB.users.length} users, ${DB.contacts.length} contacts.`);
   });
 }
