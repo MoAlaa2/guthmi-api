@@ -68,13 +68,6 @@ app.get("/api/tags", (req, res) => {
 });
 
 // ======================
-// FALLBACK
-// ======================
-app.use("/api/*", (req, res) => {
-  res.status(404).json({ error: "API route not found" });
-});
-
-// ======================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🚀 Guthmi API running on port", PORT);
