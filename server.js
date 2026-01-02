@@ -64,15 +64,22 @@ app.post('/api/login', (req, res) => {
    DASHBOARD / ANALYTICS
 ======================= */
 app.get('/api/internal-notifications', (req, res) => {
-  res.json([]);
+  res.json({
+    messages: []
+  });
 });
 
 app.get('/api/analytics/summary', (req, res) => {
   res.json({
-    totalMessages: 0,
-    delivered: 0,
-    failed: 0,
-    cost: 0
+    messages: {
+      total: 0,
+      sent: 0,
+      delivered: 0,
+      failed: 0
+    },
+    cost: {
+      total: 0
+    }
   });
 });
 
@@ -80,7 +87,9 @@ app.get('/api/analytics/summary', (req, res) => {
    ORDERS
 ======================= */
 app.get('/api/orders', (req, res) => {
-  res.json([]);
+  res.json({
+    orders: []
+  });
 });
 
 /* =======================
