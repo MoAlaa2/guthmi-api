@@ -1,35 +1,28 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
+
+// Fix for missing node types in some environments
+declare const require: any;
+declare const module: any;
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* =======================
-   Middleware
-======================= */
-app.use(cors({
-  origin: [
-    'https://guthmi.site',
-    'https://www.guthmi.site',
-    'http://localhost:5173'
-  ],
-  credentials: true
-}));
-
+// --- MIDDLEWARE ---
+app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
+// Request Logging Middleware (Crucial for debugging)
+app.use((req: any, res: any, next: any) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-/* =======================
-   META CONFIG (optional)
-======================= */
+// --- META API CONFIGURATION ---
 const META_API_VERSION = 'v22.0';
 const BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 const { META_ACCESS_TOKEN, WABA_ID, PHONE_NUMBER_ID } = process.env;
@@ -37,193 +30,587 @@ const { META_ACCESS_TOKEN, WABA_ID, PHONE_NUMBER_ID } = process.env;
 const metaClient = axios.create({
   baseURL: BASE_URL,
   headers: {
-    Authorization: `Bearer ${META_ACCESS_TOKEN}`,
-    'Content-Type': 'application/json'
-  }
+    'Authorization': `Bearer ${META_ACCESS_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
 });
 
-/* =======================
-   MOCK DATABASE (Railway-safe)
-======================= */
-const users = [
-  {
-    id: 'usr_1',
-    name: 'Mohamed Alaa',
-    email: 'admin@guthmi.com',
-    role: 'admin',
-    permissions: ['*'],
-    status: 'active',
-    avatar: 'https://ui-avatars.com/api/?name=Admin'
-  }
-];
+// --- IN-MEMORY DATABASE (SINGLE SOURCE OF TRUTH) ---
+// This creates a persistent state while the server is running.
 
-const conversations = [
-  {
-    id: 'conv_1',
-    contactName: 'Test Customer',
-    contactNumber: '+966500000000',
-    lastMessage: 'Hello',
-    lastMessageTimestamp: new Date().toISOString(),
-    unreadCount: 1,
-    status: 'open',
-    avatar: 'https://ui-avatars.com/api/?name=Customer'
-  }
-];
-
-const messages = {
-  conv_1: [
-    {
-      id: 'm1',
-      conversationId: 'conv_1',
-      content: 'Hello',
-      type: 'text',
-      direction: 'inbound',
-      status: 'read',
-      timestamp: new Date().toISOString()
+const DB = {
+  users: [
+    { 
+      id: 'u1', 
+      name: 'Admin User', 
+      email: 'admin@guthmi.com', 
+      role: 'admin', 
+      permissions: ['*'], // Wildcard for full access
+      status: 'active', 
+      avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff',
+      agentMode: 'senior'
+    },
+    { 
+      id: 'u2', 
+      name: 'Support Agent', 
+      email: 'agent@guthmi.com', 
+      role: 'agent', 
+      permissions: ['view_inbox', 'manage_contacts'], 
+      status: 'active', 
+      avatar: 'https://ui-avatars.com/api/?name=Support+Agent&background=16a34a&color=fff',
+      agentMode: 'standard'
     }
-  ]
+  ],
+  contacts: [
+    { 
+      id: 'c1', 
+      firstName: 'Alice', 
+      lastName: 'Doe', 
+      phone: '+1234567890', 
+      email: 'alice@example.com', 
+      status: 'SUBSCRIBED', 
+      tags: ['t1'], 
+      lists: ['l1'], 
+      customAttributes: { city: 'Dubai' }, 
+      createdAt: new Date().toISOString(), 
+      lastModified: new Date().toISOString(),
+      avatar: 'https://ui-avatars.com/api/?name=Alice+Doe'
+    },
+    { 
+      id: 'c2', 
+      firstName: 'Bob', 
+      lastName: 'Smith', 
+      phone: '+97150000000', 
+      email: 'bob@example.com', 
+      status: 'SUBSCRIBED', 
+      tags: [], 
+      lists: [], 
+      customAttributes: {}, 
+      createdAt: new Date(Date.now() - 86400000).toISOString(), 
+      lastModified: new Date().toISOString(),
+      avatar: 'https://ui-avatars.com/api/?name=Bob+Smith'
+    }
+  ],
+  conversations: [
+    { 
+      id: 'conv_1', 
+      contactName: 'Alice Doe', 
+      contactNumber: '+1234567890', 
+      lastMessage: 'I need help with my order', 
+      lastMessageTimestamp: new Date().toISOString(), 
+      lastCustomerMessageTimestamp: new Date().toISOString(),
+      unreadCount: 1, 
+      status: 'open', 
+      assignedAgentId: null, 
+      isLocked: false, 
+      lockedByAgentId: null,
+      systemTags: [{id: 'st1', key: 'sentiment', value: 'Neutral', color: '#64748b'}],
+      tags: ['t1'],
+      avatar: 'https://ui-avatars.com/api/?name=Alice+Doe'
+    },
+    { 
+      id: 'conv_2', 
+      contactName: 'Bob Smith', 
+      contactNumber: '+97150000000', 
+      lastMessage: 'Thanks for the update', 
+      lastMessageTimestamp: new Date(Date.now() - 3600000).toISOString(), 
+      lastCustomerMessageTimestamp: new Date(Date.now() - 3600000).toISOString(),
+      unreadCount: 0, 
+      status: 'open', 
+      assignedAgentId: 'u2', 
+      isLocked: true, 
+      lockedByAgentId: 'u2',
+      systemTags: [],
+      tags: [],
+      avatar: 'https://ui-avatars.com/api/?name=Bob+Smith'
+    }
+  ],
+  messages: {
+    'conv_1': [
+      { id: 'm1', conversationId: 'conv_1', type: 'text', content: 'Hi there!', timestamp: new Date(Date.now() - 100000).toISOString(), direction: 'inbound', status: 'read' },
+      { id: 'm2', conversationId: 'conv_1', type: 'text', content: 'I need help with my order', timestamp: new Date().toISOString(), direction: 'inbound', status: 'delivered' }
+    ],
+    'conv_2': [
+      { id: 'm3', conversationId: 'conv_2', type: 'text', content: 'Your order is confirmed.', timestamp: new Date(Date.now() - 7200000).toISOString(), direction: 'outbound', status: 'read' },
+      { id: 'm4', conversationId: 'conv_2', type: 'text', content: 'Thanks for the update', timestamp: new Date(Date.now() - 3600000).toISOString(), direction: 'inbound', status: 'read' }
+    ]
+  } as Record<string, any[]>,
+  orders: [] as any[],
+  campaigns: [] as any[],
+  templates: [] as any[], 
+  internalNotifications: [
+    {
+      id: 'notif_1',
+      title: 'System Online',
+      description: 'The backend services are connected successfully.',
+      type: 'SYSTEM',
+      priority: 'NORMAL',
+      timestamp: new Date().toISOString(),
+      read: false
+    }
+  ],
+  tags: [
+    { id: 't1', name: 'VIP', color: '#FF0000', createdAt: new Date().toISOString() },
+    { id: 't2', name: 'New Customer', color: '#10B981', createdAt: new Date().toISOString() }
+  ],
+  lists: [
+    { id: 'l1', name: 'Newsletter', count: 1, isDefault: true, createdAt: new Date().toISOString() }
+  ],
+  products: [
+    { id: 'p1', name: 'Premium Service', sku: 'SRV-001', price: 500, stock: 100, manageStock: false, image: '' },
+    { id: 'p2', name: 'Physical Good', sku: 'PHY-002', price: 150, stock: 20, manageStock: true, image: '' }
+  ],
+  queue: { pending: 0, processing: 0, completed: 124, failed: 2, currentRate: 1.5, estimatedCompletion: '0s' },
+  protection: { emergencyStop: false, warmUpMode: false, maxDailyMessages: 1000, currentDailyCount: 45, baseDelayMs: 100, consecutiveFailures: 0, healthStatus: 'HEALTHY' },
+  globalSettings: {
+    inventory: { reserveOnApproval: false, lowStockThreshold: 5 },
+    invoicing: { autoGenerate: false, companyName: 'Guthmi Enterprise', taxId: 'TRN-12345' },
+    workingHours: { enabled: false, timezone: 'Asia/Dubai', schedule: {}, holidays: [], offHoursMessage: 'We are currently closed.' },
+    sla: { firstResponseMinutes: 60, resolutionHours: 24 }
+  }
 };
 
-const internalNotifications = [
-  {
-    id: 'n1',
-    title: 'System Ready',
-    description: 'Railway backend is live',
-    type: 'SYSTEM',
-    priority: 'NORMAL',
-    read: false,
-    timestamp: new Date().toISOString()
-  }
-];
+// --- ROUTES ---
 
-/* =======================
-   BASE
-======================= */
-app.get('/', (req, res) => {
-  res.send('Guthmi API is running');
-});
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-/* =======================
-   AUTH
-======================= */
-app.post('/api/login', (req, res) => {
+// 1. AUTH & TEAM
+app.post('/api/auth/login', (req: any, res: any) => {
   const { email } = req.body;
-  const user = users.find(u => u.email === email) || users[0];
-
-  res.json({
-    token: 'dev-token-123',
-    user
-  });
+  // Simple auth: find user by email or default to admin if dev mode
+  const user = DB.users.find(u => u.email === email) || DB.users[0];
+  
+  if (user) {
+    res.json({
+      ...user,
+      token: 'mock_jwt_token_' + Date.now()
+    });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
 });
 
-/* =======================
-   TEAM
-======================= */
-app.get('/api/team', (req, res) => {
-  res.json(users);
+app.get('/api/team', (req: any, res: any) => {
+  res.json(DB.users);
 });
 
-/* =======================
-   INTERNAL NOTIFICATIONS
-======================= */
-app.get('/api/internal-notifications', (req, res) => {
-  res.json({
-    notifications: internalNotifications
-  });
+app.post('/api/team', (req: any, res: any) => {
+  const newUser = { 
+    id: 'u_' + Date.now(), 
+    status: 'active',
+    avatar: `https://ui-avatars.com/api/?name=${req.body.name || 'User'}`,
+    ...req.body 
+  };
+  DB.users.push(newUser);
+  res.json(newUser);
 });
 
-/* =======================
-   INBOX
-======================= */
-app.get('/api/conversations', (req, res) => {
-  res.json(conversations);
+app.put('/api/team/:id', (req: any, res: any) => {
+  const idx = DB.users.findIndex(u => u.id === req.params.id);
+  if (idx > -1) {
+    DB.users[idx] = { ...DB.users[idx], ...req.body };
+    res.json(DB.users[idx]);
+  } else {
+    res.status(404).json({ error: 'User not found' });
+  }
 });
 
-app.get('/api/conversations/:id/messages', (req, res) => {
-  res.json({
-    messages: messages[req.params.id] || []
-  });
+app.delete('/api/team/:id', (req: any, res: any) => {
+  DB.users = DB.users.filter(u => u.id !== req.params.id);
+  res.json({ success: true });
 });
 
-app.post('/api/conversations/:id/messages', async (req, res) => {
-  const { content } = req.body;
+// 2. CONTACTS & LISTS
+app.get('/api/contacts', (req: any, res: any) => {
+  res.json(DB.contacts);
+});
 
+app.get('/api/contacts/count', (req: any, res: any) => {
+  res.json({ count: DB.contacts.length });
+});
+
+app.post('/api/contacts', (req: any, res: any) => {
+  const contact = { 
+    id: 'c_' + Date.now(), 
+    createdAt: new Date().toISOString(), 
+    lastModified: new Date().toISOString(),
+    avatar: `https://ui-avatars.com/api/?name=${req.body.firstName}`,
+    lists: [],
+    tags: [],
+    customAttributes: {},
+    ...req.body 
+  };
+  DB.contacts.push(contact);
+
+  // Auto-create conversation stub
+  const existingConv = DB.conversations.find(c => c.contactNumber === contact.phone);
+  if (!existingConv) {
+    const newConv = {
+      id: 'conv_' + contact.id,
+      contactName: `${contact.firstName} ${contact.lastName || ''}`,
+      contactNumber: contact.phone,
+      lastMessage: '',
+      lastMessageTimestamp: new Date().toISOString(),
+      lastCustomerMessageTimestamp: new Date().toISOString(),
+      unreadCount: 0,
+      status: 'open',
+      avatar: contact.avatar,
+      isLocked: false,
+      lockedByAgentId: null,
+      assignedAgentId: null,
+      tags: [],
+      systemTags: []
+    };
+    DB.conversations.unshift(newConv); // Add to top
+    DB.messages[newConv.id] = [];
+  }
+
+  res.json(contact);
+});
+
+app.put('/api/contacts/:id', (req: any, res: any) => {
+  const idx = DB.contacts.findIndex(c => c.id === req.params.id);
+  if (idx > -1) {
+    DB.contacts[idx] = { ...DB.contacts[idx], ...req.body, lastModified: new Date().toISOString() };
+    res.json(DB.contacts[idx]);
+  } else {
+    res.status(404).json({ error: 'Contact not found' });
+  }
+});
+
+app.delete('/api/contacts/:id', (req: any, res: any) => {
+  DB.contacts = DB.contacts.filter(c => c.id !== req.params.id);
+  res.json({ success: true });
+});
+
+app.get('/api/contact-lists', (req: any, res: any) => res.json(DB.lists));
+app.post('/api/contact-lists', (req: any, res: any) => {
+  const list = { id: 'l_' + Date.now(), count: 0, createdAt: new Date().toISOString(), ...req.body };
+  DB.lists.push(list);
+  res.json(list);
+});
+
+app.get('/api/contact-tags', (req: any, res: any) => res.json(DB.tags));
+app.post('/api/contact-tags', (req: any, res: any) => {
+  const tag = { id: 't_' + Date.now(), count: 0, ...req.body };
+  DB.tags.push(tag);
+  res.json(tag);
+});
+
+// 3. INBOX & MESSAGING
+app.get('/api/conversations', (req: any, res: any) => {
+  // Sort by last message desc
+  const sorted = [...DB.conversations].sort((a, b) => 
+    new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime()
+  );
+  res.json(sorted);
+});
+
+app.put('/api/conversations/:id', (req: any, res: any) => {
+  const idx = DB.conversations.findIndex(c => c.id === req.params.id);
+  if (idx > -1) {
+    DB.conversations[idx] = { ...DB.conversations[idx], ...req.body };
+    res.json(DB.conversations[idx]);
+  } else {
+    res.status(404).send();
+  }
+});
+
+app.get('/api/conversations/:id/messages', (req: any, res: any) => {
+  res.json(DB.messages[req.params.id] || []);
+});
+
+app.post('/api/conversations/:id/messages', (req: any, res: any) => {
+  const convId = req.params.id;
+  const { content, type } = req.body;
   const msg = {
     id: 'm_' + Date.now(),
-    conversationId: req.params.id,
+    conversationId: convId,
     content,
-    type: 'text',
+    type,
     direction: 'outbound',
-    status: 'sent',
-    timestamp: new Date().toISOString()
+    status: 'sent', // Initially sent
+    timestamp: new Date().toISOString(),
+    senderName: 'You' // Or current user name
   };
 
-  messages[req.params.id] = messages[req.params.id] || [];
-  messages[req.params.id].push(msg);
+  if (!DB.messages[convId]) DB.messages[convId] = [];
+  DB.messages[convId].push(msg);
 
-  // Optional Meta send
-  if (PHONE_NUMBER_ID && META_ACCESS_TOKEN) {
-    metaClient.post(`/${PHONE_NUMBER_ID}/messages`, {
-      messaging_product: 'whatsapp',
-      to: conversations[0].contactNumber,
-      type: 'text',
-      text: { body: content }
-    }).catch(() => {});
+  // Update conversation metadata
+  const conv = DB.conversations.find(c => c.id === convId);
+  if (conv) {
+    if (type !== 'note') {
+        conv.lastMessage = type === 'text' ? content : `Sent a ${type}`;
+        conv.lastMessageTimestamp = msg.timestamp;
+    }
   }
+
+  // Simulate delivery/read status updates after delay
+  setTimeout(() => { msg.status = 'delivered'; }, 1500);
+  setTimeout(() => { msg.status = 'read'; }, 3000);
 
   res.json(msg);
 });
 
-/* =======================
-   ORDERS
-======================= */
-app.get('/api/orders', (req, res) => {
-  res.json([]);
+app.post('/api/conversations/:id/lock', (req: any, res: any) => {
+  const conv = DB.conversations.find(c => c.id === req.params.id);
+  if (conv) {
+    conv.isLocked = true;
+    conv.lockedByAgentId = req.body.userId;
+    conv.assignedAgentId = req.body.userId;
+    res.json({ success: true });
+  } else res.status(404).send();
 });
 
-/* =======================
-   ANALYTICS
-======================= */
-app.get('/api/analytics/summary', (req, res) => {
+app.post('/api/conversations/:id/unlock', (req: any, res: any) => {
+  const conv = DB.conversations.find(c => c.id === req.params.id);
+  if (conv) {
+    conv.isLocked = false;
+    conv.lockedByAgentId = null;
+    res.json({ success: true });
+  } else res.status(404).send();
+});
+
+app.post('/api/conversations/bulk-assign', (req: any, res: any) => {
+  const { conversationIds, agentId } = req.body;
+  DB.conversations.forEach(c => {
+    if (conversationIds.includes(c.id)) {
+      c.assignedAgentId = agentId;
+      if (agentId) {
+          c.isLocked = true;
+          c.lockedByAgentId = agentId;
+      } else {
+          c.isLocked = false;
+          c.lockedByAgentId = null;
+      }
+    }
+  });
+  res.json({ success: true });
+});
+
+// 4. CAMPAIGNS
+app.get('/api/campaigns', (req: any, res: any) => {
+  res.json(DB.campaigns);
+});
+
+app.post('/api/campaigns', (req: any, res: any) => {
+  const camp = { 
+    id: 'camp_' + Date.now(), 
+    ...req.body, 
+    createdAt: new Date().toISOString(),
+    stats: { total: req.body.stats?.total || 0, sent: 0, delivered: 0, read: 0, failed: 0 }
+  };
+  DB.campaigns.push(camp);
+  res.json(camp);
+});
+
+app.put('/api/campaigns/:id', (req: any, res: any) => {
+  const idx = DB.campaigns.findIndex(c => c.id === req.params.id);
+  if (idx > -1) {
+    DB.campaigns[idx] = { ...DB.campaigns[idx], ...req.body };
+    res.json(DB.campaigns[idx]);
+  } else res.status(404).send();
+});
+
+app.post('/api/campaigns/:id/toggle', (req: any, res: any) => {
+  const camp = DB.campaigns.find(c => c.id === req.params.id);
+  if (camp) {
+    if (camp.status === 'RUNNING') camp.status = 'PAUSED';
+    else if (['PAUSED', 'DRAFT'].includes(camp.status)) camp.status = 'RUNNING';
+    res.json(camp);
+  } else res.status(404).send();
+});
+
+app.delete('/api/campaigns/:id', (req: any, res: any) => {
+  DB.campaigns = DB.campaigns.filter(c => c.id !== req.params.id);
+  res.json({ success: true });
+});
+
+// 5. ORDERS
+app.get('/api/orders', (req: any, res: any) => {
+  res.json(DB.orders);
+});
+
+app.post('/api/orders', (req: any, res: any) => {
+  const order = {
+    id: 'ord_' + Date.now(),
+    orderNumber: 'ORD-' + (1000 + DB.orders.length),
+    createdAt: new Date().toISOString(),
+    history: [{ action: 'created', timestamp: new Date().toISOString(), userName: 'System' }],
+    approvalStatus: req.body.requiresApproval ? 'pending_approval' : 'approved',
+    status: 'pending-payment',
+    ...req.body
+  };
+  
+  // Calculations
+  const subtotal = order.items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+  order.subtotal = subtotal;
+  order.tax = subtotal * 0.15;
+  order.total = subtotal + order.tax - (order.discount || 0);
+
+  if (order.approvalStatus === 'approved') {
+      order.paymentLink = `https://pay.guthmi.com/${order.id}`;
+  }
+
+  DB.orders.unshift(order);
+  res.json(order);
+});
+
+app.put('/api/orders/:id/status', (req: any, res: any) => {
+  const order = DB.orders.find(o => o.id === req.params.id);
+  if (order) {
+    const { action, userName, notes } = req.body;
+    
+    if (action === 'approve') {
+        order.approvalStatus = 'approved';
+        order.paymentLink = `https://pay.guthmi.com/${order.id}`;
+    }
+    if (action === 'reject') order.approvalStatus = 'rejected';
+    
+    order.history.push({
+      id: 'h_' + Date.now(),
+      action,
+      userName,
+      timestamp: new Date().toISOString(),
+      notes
+    });
+    res.json(order);
+  } else res.status(404).send();
+});
+
+app.put('/api/orders/:id', (req: any, res: any) => {
+    const idx = DB.orders.findIndex(o => o.id === req.params.id);
+    if (idx > -1) {
+        // Merge updates
+        const { updates, userName } = req.body;
+        DB.orders[idx] = { ...DB.orders[idx], ...updates };
+        DB.orders[idx].history.push({
+            id: 'h_' + Date.now(),
+            action: 'updated',
+            userName: userName || 'System',
+            timestamp: new Date().toISOString()
+        });
+        res.json(DB.orders[idx]);
+    } else res.status(404).send();
+});
+
+app.post('/api/orders/:id/invoice', (req: any, res: any) => {
+    const order = DB.orders.find(o => o.id === req.params.id);
+    if(order) {
+        order.invoice = {
+            id: 'inv_' + order.id,
+            number: 'INV-' + order.orderNumber,
+            url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', // Mock PDF
+            generatedAt: new Date().toISOString(),
+            status: 'issued'
+        };
+        res.json({ url: order.invoice.url });
+    } else res.status(404).send();
+});
+
+// 6. ANALYTICS & DASHBOARD
+app.get('/api/analytics/summary', (req: any, res: any) => {
+  const totalMessages = Object.values(DB.messages).flat().length;
   res.json({
-    totalMessages: 12,
+    totalMessages: totalMessages,
+    readRate: 85,
+    failedRate: 2.5,
+    totalCost: totalMessages * 0.05,
     deliveredRate: 98,
-    readRate: 87,
-    failedRate: 2,
-    totalCost: 1.4
+    activeConversations: DB.conversations.length,
+    trends: { messages: 12, read: 5, cost: 8 }
   });
 });
 
-/* =======================
-   TEMPLATES
-======================= */
-app.get('/api/templates', async (req, res) => {
+app.get('/api/analytics/timeline', (req: any, res: any) => {
+  const days = 7;
+  const data = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    data.push({
+      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      sent: Math.floor(Math.random() * 100) + 50,
+      delivered: Math.floor(Math.random() * 80) + 40,
+      read: Math.floor(Math.random() * 60) + 20,
+      failed: Math.floor(Math.random() * 5)
+    });
+  }
+  res.json(data.reverse());
+});
+
+app.get('/api/system/queue-stats', (req: any, res: any) => {
+  // Fluctuate random stats for liveness
+  DB.queue.pending = Math.max(0, DB.queue.pending + (Math.random() > 0.5 ? 1 : -1));
+  DB.queue.currentRate = Math.random() * 5;
+  res.json(DB.queue);
+});
+
+app.get('/api/settings/protection', (req: any, res: any) => {
+  res.json(DB.protection);
+});
+
+app.put('/api/settings/protection', (req: any, res: any) => {
+  DB.protection = { ...DB.protection, ...req.body };
+  res.json(DB.protection);
+});
+
+// 7. GLOBAL SETTINGS
+app.get('/api/settings/global', (req: any, res: any) => {
+    res.json(DB.globalSettings);
+});
+
+app.put('/api/settings/global', (req: any, res: any) => {
+    DB.globalSettings = { ...DB.globalSettings, ...req.body };
+    res.json(DB.globalSettings);
+});
+
+// 8. TEMPLATES & INTERNAL NOTIFS
+app.get('/api/templates', async (req: any, res: any) => {
   if (WABA_ID && META_ACCESS_TOKEN) {
     try {
-      const r = await metaClient.get(`/${WABA_ID}/message_templates`);
-      return res.json(r.data.data || []);
-    } catch (e) {}
+      const response = await metaClient.get(`/${WABA_ID}/message_templates`);
+      res.json(response.data.data || []);
+      return;
+    } catch (e) {
+      console.error('Meta Template Fetch Failed');
+    }
   }
-  res.json([]);
+  // Return mock if no keys or failed
+  res.json(DB.templates);
 });
 
-/* =======================
-   404
-======================= */
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl
+app.get('/api/internal-notifications', (req: any, res: any) => {
+  res.json(DB.internalNotifications.reverse());
+});
+
+app.post('/api/internal-notifications', (req: any, res: any) => {
+  const n = { id: 'n_' + Date.now(), read: false, timestamp: new Date().toISOString(), ...req.body };
+  DB.internalNotifications.push(n);
+  res.json(n);
+});
+
+app.post('/api/internal-notifications/:id/read', (req: any, res: any) => {
+  if (req.params.id === 'all') {
+    DB.internalNotifications.forEach(n => n.read = true);
+  } else {
+    const n = DB.internalNotifications.find(x => x.id === req.params.id);
+    if (n) n.read = true;
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/products', (req: any, res: any) => {
+    const q = (req.query.q as string || '').toLowerCase();
+    const filtered = DB.products.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+    res.json(filtered);
+});
+
+// --- SERVER START ---
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`📦 Database initialized with ${DB.users.length} users, ${DB.contacts.length} contacts.`);
   });
-});
+}
 
-/* =======================
-   START
-======================= */
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Guthmi API running on port ${PORT}`);
-});
+export default app;
