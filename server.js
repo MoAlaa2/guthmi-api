@@ -77,7 +77,7 @@ app.get("/api/team", (req, res) => {
 // =====================
 // FALLBACK FOR API
 // =====================
-app.use("/api/*", (req, res) => {
+app.use("/api", (req, res) => {
   res.status(404).json({
     message: "API route not implemented yet",
     path: req.originalUrl
