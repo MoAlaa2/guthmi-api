@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 // Request Logging Middleware (Crucial for debugging)
-app.use((req: any, res: any, next: any) => {
+app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
@@ -134,10 +134,10 @@ const DB = {
       { id: 'm3', conversationId: 'conv_2', type: 'text', content: 'Your order is confirmed.', timestamp: new Date(Date.now() - 7200000).toISOString(), direction: 'outbound', status: 'read' },
       { id: 'm4', conversationId: 'conv_2', type: 'text', content: 'Thanks for the update', timestamp: new Date(Date.now() - 3600000).toISOString(), direction: 'inbound', status: 'read' }
     ]
-  } as Record<string, any[]>,
-  orders: [] as any[],
-  campaigns: [] as any[],
-  templates: [] as any[], 
+ },
+  orders: [],
+  campaigns: [],
+  templates: [], 
   internalNotifications: [
     {
       id: 'notif_1',
@@ -173,7 +173,7 @@ const DB = {
 // --- ROUTES ---
 
 // 1. AUTH & TEAM
-app.post('/api/auth/login', (req: any, res: any) => {
+app.post('/api/auth/login', (req, res) => {
   const { email } = req.body;
   // Simple auth: find user by email or default to admin if dev mode
   const user = DB.users.find(u => u.email === email) || DB.users[0];
@@ -188,11 +188,11 @@ app.post('/api/auth/login', (req: any, res: any) => {
   }
 });
 
-app.get('/api/team', (req: any, res: any) => {
+app.get('/api/team', (req, res) => {
   res.json(DB.users);
 });
 
-app.post('/api/team', (req: any, res: any) => {
+app.post('/api/team', (req, res) => {
   const newUser = { 
     id: 'u_' + Date.now(), 
     status: 'active',
@@ -203,7 +203,7 @@ app.post('/api/team', (req: any, res: any) => {
   res.json(newUser);
 });
 
-app.put('/api/team/:id', (req: any, res: any) => {
+app.put('/api/team/:id', (req, res) => {
   const idx = DB.users.findIndex(u => u.id === req.params.id);
   if (idx > -1) {
     DB.users[idx] = { ...DB.users[idx], ...req.body };
@@ -213,21 +213,21 @@ app.put('/api/team/:id', (req: any, res: any) => {
   }
 });
 
-app.delete('/api/team/:id', (req: any, res: any) => {
+app.delete('/api/team/:id', (req, res) => {
   DB.users = DB.users.filter(u => u.id !== req.params.id);
   res.json({ success: true });
 });
 
 // 2. CONTACTS & LISTS
-app.get('/api/contacts', (req: any, res: any) => {
+app.get('/api/contacts', (req, res) => {
   res.json(DB.contacts);
 });
 
-app.get('/api/contacts/count', (req: any, res: any) => {
+app.get('/api/contacts/count', (req, res) => {
   res.json({ count: DB.contacts.length });
 });
 
-app.post('/api/contacts', (req: any, res: any) => {
+app.post('/api/contacts', (req, res) => {
   const contact = { 
     id: 'c_' + Date.now(), 
     createdAt: new Date().toISOString(), 
@@ -266,7 +266,7 @@ app.post('/api/contacts', (req: any, res: any) => {
   res.json(contact);
 });
 
-app.put('/api/contacts/:id', (req: any, res: any) => {
+app.put('/api/contacts/:id', (req, res) => {
   const idx = DB.contacts.findIndex(c => c.id === req.params.id);
   if (idx > -1) {
     DB.contacts[idx] = { ...DB.contacts[idx], ...req.body, lastModified: new Date().toISOString() };
@@ -276,27 +276,27 @@ app.put('/api/contacts/:id', (req: any, res: any) => {
   }
 });
 
-app.delete('/api/contacts/:id', (req: any, res: any) => {
+app.delete('/api/contacts/:id', (req, res) => {
   DB.contacts = DB.contacts.filter(c => c.id !== req.params.id);
   res.json({ success: true });
 });
 
-app.get('/api/contact-lists', (req: any, res: any) => res.json(DB.lists));
-app.post('/api/contact-lists', (req: any, res: any) => {
+app.get('/api/contact-lists', (req, res) => res.json(DB.lists));
+app.post('/api/contact-lists', (req, res) => {
   const list = { id: 'l_' + Date.now(), count: 0, createdAt: new Date().toISOString(), ...req.body };
   DB.lists.push(list);
   res.json(list);
 });
 
-app.get('/api/contact-tags', (req: any, res: any) => res.json(DB.tags));
-app.post('/api/contact-tags', (req: any, res: any) => {
+app.get('/api/contact-tags', (req, res) => res.json(DB.tags));
+app.post('/api/contact-tags', (req, res) => {
   const tag = { id: 't_' + Date.now(), count: 0, ...req.body };
   DB.tags.push(tag);
   res.json(tag);
 });
 
 // 3. INBOX & MESSAGING
-app.get('/api/conversations', (req: any, res: any) => {
+app.get('/api/conversations', (req, res) => {
   // Sort by last message desc
   const sorted = [...DB.conversations].sort((a, b) => 
     new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime()
@@ -304,7 +304,7 @@ app.get('/api/conversations', (req: any, res: any) => {
   res.json(sorted);
 });
 
-app.put('/api/conversations/:id', (req: any, res: any) => {
+app.put('/api/conversations/:id', (req, res) => {
   const idx = DB.conversations.findIndex(c => c.id === req.params.id);
   if (idx > -1) {
     DB.conversations[idx] = { ...DB.conversations[idx], ...req.body };
@@ -314,11 +314,11 @@ app.put('/api/conversations/:id', (req: any, res: any) => {
   }
 });
 
-app.get('/api/conversations/:id/messages', (req: any, res: any) => {
+app.get('/api/conversations/:id/messages', (req, res) => {
   res.json(DB.messages[req.params.id] || []);
 });
 
-app.post('/api/conversations/:id/messages', (req: any, res: any) => {
+app.post('/api/conversations/:id/messages', (req, res) => {
   const convId = req.params.id;
   const { content, type } = req.body;
   const msg = {
@@ -351,7 +351,7 @@ app.post('/api/conversations/:id/messages', (req: any, res: any) => {
   res.json(msg);
 });
 
-app.post('/api/conversations/:id/lock', (req: any, res: any) => {
+app.post('/api/conversations/:id/lock', (req, res) => {
   const conv = DB.conversations.find(c => c.id === req.params.id);
   if (conv) {
     conv.isLocked = true;
@@ -361,7 +361,7 @@ app.post('/api/conversations/:id/lock', (req: any, res: any) => {
   } else res.status(404).send();
 });
 
-app.post('/api/conversations/:id/unlock', (req: any, res: any) => {
+app.post('/api/conversations/:id/unlock', (req, res) => {
   const conv = DB.conversations.find(c => c.id === req.params.id);
   if (conv) {
     conv.isLocked = false;
@@ -370,7 +370,7 @@ app.post('/api/conversations/:id/unlock', (req: any, res: any) => {
   } else res.status(404).send();
 });
 
-app.post('/api/conversations/bulk-assign', (req: any, res: any) => {
+app.post('/api/conversations/bulk-assign', (req, res) => {
   const { conversationIds, agentId } = req.body;
   DB.conversations.forEach(c => {
     if (conversationIds.includes(c.id)) {
@@ -388,11 +388,11 @@ app.post('/api/conversations/bulk-assign', (req: any, res: any) => {
 });
 
 // 4. CAMPAIGNS
-app.get('/api/campaigns', (req: any, res: any) => {
+app.get('/api/campaigns', (req, res) => {
   res.json(DB.campaigns);
 });
 
-app.post('/api/campaigns', (req: any, res: any) => {
+app.post('/api/campaigns', (req, res) => {
   const camp = { 
     id: 'camp_' + Date.now(), 
     ...req.body, 
@@ -403,7 +403,7 @@ app.post('/api/campaigns', (req: any, res: any) => {
   res.json(camp);
 });
 
-app.put('/api/campaigns/:id', (req: any, res: any) => {
+app.put('/api/campaigns/:id', (req, res) => {
   const idx = DB.campaigns.findIndex(c => c.id === req.params.id);
   if (idx > -1) {
     DB.campaigns[idx] = { ...DB.campaigns[idx], ...req.body };
@@ -411,7 +411,7 @@ app.put('/api/campaigns/:id', (req: any, res: any) => {
   } else res.status(404).send();
 });
 
-app.post('/api/campaigns/:id/toggle', (req: any, res: any) => {
+app.post('/api/campaigns/:id/toggle', (req, res) => {
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (camp) {
     if (camp.status === 'RUNNING') camp.status = 'PAUSED';
@@ -420,17 +420,17 @@ app.post('/api/campaigns/:id/toggle', (req: any, res: any) => {
   } else res.status(404).send();
 });
 
-app.delete('/api/campaigns/:id', (req: any, res: any) => {
+app.delete('/api/campaigns/:id', (req, res) => {
   DB.campaigns = DB.campaigns.filter(c => c.id !== req.params.id);
   res.json({ success: true });
 });
 
 // 5. ORDERS
-app.get('/api/orders', (req: any, res: any) => {
+app.get('/api/orders', (req, res) => {
   res.json(DB.orders);
 });
 
-app.post('/api/orders', (req: any, res: any) => {
+app.post('/api/orders', (req, res) => {
   const order = {
     id: 'ord_' + Date.now(),
     orderNumber: 'ORD-' + (1000 + DB.orders.length),
@@ -442,7 +442,10 @@ app.post('/api/orders', (req: any, res: any) => {
   };
   
   // Calculations
-  const subtotal = order.items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+  const subtotal = order.items.reduce(
+  (acc, i) => acc + (i.price * i.quantity),
+  0
+);
   order.subtotal = subtotal;
   order.tax = subtotal * 0.15;
   order.total = subtotal + order.tax - (order.discount || 0);
@@ -455,7 +458,7 @@ app.post('/api/orders', (req: any, res: any) => {
   res.json(order);
 });
 
-app.put('/api/orders/:id/status', (req: any, res: any) => {
+app.put('/api/orders/:id/status', (req, res) => {
   const order = DB.orders.find(o => o.id === req.params.id);
   if (order) {
     const { action, userName, notes } = req.body;
@@ -477,7 +480,7 @@ app.put('/api/orders/:id/status', (req: any, res: any) => {
   } else res.status(404).send();
 });
 
-app.put('/api/orders/:id', (req: any, res: any) => {
+app.put('/api/orders/:id', (req, res) => {
     const idx = DB.orders.findIndex(o => o.id === req.params.id);
     if (idx > -1) {
         // Merge updates
@@ -493,7 +496,7 @@ app.put('/api/orders/:id', (req: any, res: any) => {
     } else res.status(404).send();
 });
 
-app.post('/api/orders/:id/invoice', (req: any, res: any) => {
+app.post('/api/orders/:id/invoice', (req, res) => {
     const order = DB.orders.find(o => o.id === req.params.id);
     if(order) {
         order.invoice = {
@@ -508,7 +511,7 @@ app.post('/api/orders/:id/invoice', (req: any, res: any) => {
 });
 
 // 6. ANALYTICS & DASHBOARD
-app.get('/api/analytics/summary', (req: any, res: any) => {
+app.get('/api/analytics/summary', (req, res) => {
   const totalMessages = Object.values(DB.messages).flat().length;
   res.json({
     totalMessages: totalMessages,
@@ -521,7 +524,7 @@ app.get('/api/analytics/summary', (req: any, res: any) => {
   });
 });
 
-app.get('/api/analytics/timeline', (req: any, res: any) => {
+app.get('/api/analytics/timeline', (req, res) => {
   const days = 7;
   const data = [];
   for (let i = 0; i < days; i++) {
@@ -538,34 +541,34 @@ app.get('/api/analytics/timeline', (req: any, res: any) => {
   res.json(data.reverse());
 });
 
-app.get('/api/system/queue-stats', (req: any, res: any) => {
+app.get('/api/system/queue-stats', (req, res) => {
   // Fluctuate random stats for liveness
   DB.queue.pending = Math.max(0, DB.queue.pending + (Math.random() > 0.5 ? 1 : -1));
   DB.queue.currentRate = Math.random() * 5;
   res.json(DB.queue);
 });
 
-app.get('/api/settings/protection', (req: any, res: any) => {
+app.get('/api/settings/protection', (req, res) => {
   res.json(DB.protection);
 });
 
-app.put('/api/settings/protection', (req: any, res: any) => {
+app.put('/api/settings/protection', (req, res) => {
   DB.protection = { ...DB.protection, ...req.body };
   res.json(DB.protection);
 });
 
 // 7. GLOBAL SETTINGS
-app.get('/api/settings/global', (req: any, res: any) => {
+app.get('/api/settings/global', (req, res) => {
     res.json(DB.globalSettings);
 });
 
-app.put('/api/settings/global', (req: any, res: any) => {
+app.put('/api/settings/global', (req, res) => {
     DB.globalSettings = { ...DB.globalSettings, ...req.body };
     res.json(DB.globalSettings);
 });
 
 // 8. TEMPLATES & INTERNAL NOTIFS
-app.get('/api/templates', async (req: any, res: any) => {
+app.get('/api/templates', async (req, res) => {
   if (WABA_ID && META_ACCESS_TOKEN) {
     try {
       const response = await metaClient.get(`/${WABA_ID}/message_templates`);
@@ -579,17 +582,17 @@ app.get('/api/templates', async (req: any, res: any) => {
   res.json(DB.templates);
 });
 
-app.get('/api/internal-notifications', (req: any, res: any) => {
+app.get('/api/internal-notifications', (req, res) => {
   res.json(DB.internalNotifications.reverse());
 });
 
-app.post('/api/internal-notifications', (req: any, res: any) => {
+app.post('/api/internal-notifications', (req, res) => {
   const n = { id: 'n_' + Date.now(), read: false, timestamp: new Date().toISOString(), ...req.body };
   DB.internalNotifications.push(n);
   res.json(n);
 });
 
-app.post('/api/internal-notifications/:id/read', (req: any, res: any) => {
+app.post('/api/internal-notifications/:id/read', (req, res) => {
   if (req.params.id === 'all') {
     DB.internalNotifications.forEach(n => n.read = true);
   } else {
@@ -599,8 +602,8 @@ app.post('/api/internal-notifications/:id/read', (req: any, res: any) => {
   res.json({ success: true });
 });
 
-app.get('/api/products', (req: any, res: any) => {
-    const q = (req.query.q as string || '').toLowerCase();
+app.get('/api/products', (req, res) => {
+    const q = (req.query.q || '').toString().toLowerCase();
     const filtered = DB.products.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     res.json(filtered);
 });
@@ -608,9 +611,5 @@ app.get('/api/products', (req: any, res: any) => {
 // --- SERVER START ---
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
+  console.log(`📦 Database initialized with ${DB.users.length} users, ${DB.contacts.length} contacts.`);
 });
-    console.log(`📦 Database initialized with ${DB.users.length} users, ${DB.contacts.length} contacts.`);
-  });
-}
-
-export default app;
