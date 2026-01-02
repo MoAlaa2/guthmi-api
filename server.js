@@ -54,6 +54,13 @@ app.get("/api/team", (req, res) => {
 });
 
 // ======================
+// FALLBACK (Express 5 Safe)
+// ======================
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: "API route not found" });
+});
+
+// ======================
 // QUICK REPLIES
 // ======================
 app.get("/api/quick-replies", (req, res) => {
