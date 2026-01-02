@@ -29,16 +29,22 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({
+    status: 'ok',
+    service: 'Guthmi API',
+    timestamp: new Date().toISOString()
+  });
 });
 
 /* =======================
-   API ROUTES (NO WILDCARDS)
+   AUTH
 ======================= */
-
-// AUTH (temporary fake login)
 app.post('/api/login', (req, res) => {
   const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
 
   res.json({
     token: 'dev-token-123',
@@ -47,38 +53,73 @@ app.post('/api/login', (req, res) => {
       name: 'Mohamed Alaa',
       email,
       role: 'admin',
-      permissions: ['*']
+      permissions: ['*'],
+      status: 'active',
+      avatar: 'https://ui-avatars.com/api/?name=Admin'
     }
   });
 });
 
-// Internal Notifications
+/* =======================
+   DASHBOARD / ANALYTICS
+======================= */
 app.get('/api/internal-notifications', (req, res) => {
   res.json([]);
 });
 
-// Orders
+app.get('/api/analytics/summary', (req, res) => {
+  res.json({
+    totalMessages: 0,
+    delivered: 0,
+    failed: 0,
+    cost: 0
+  });
+});
+
+/* =======================
+   ORDERS
+======================= */
 app.get('/api/orders', (req, res) => {
   res.json([]);
 });
 
-// Contacts
+/* =======================
+   CONTACTS
+======================= */
 app.get('/api/contacts', (req, res) => {
   res.json([]);
 });
 
-// Teams
+/* =======================
+   TEAM
+======================= */
 app.get('/api/team', (req, res) => {
   res.json([]);
 });
 
-// Templates
+/* =======================
+   TEMPLATES
+======================= */
 app.get('/api/templates', (req, res) => {
   res.json([]);
 });
 
 /* =======================
-   404 HANDLER
+   NOTIFICATIONS
+======================= */
+app.get('/api/notifications', (req, res) => {
+  res.json([]);
+});
+
+app.post('/api/notifications', (req, res) => {
+  res.json({
+    id: Date.now().toString(),
+    status: 'DRAFT'
+  });
+});
+
+/* =======================
+   404 HANDLER (آخر حاجة)
 ======================= */
 app.use((req, res) => {
   res.status(404).json({
