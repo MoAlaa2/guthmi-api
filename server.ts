@@ -470,19 +470,20 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // السماح للـ server-to-server والـ tools
+    // Allow server-to-server and tools (no origin header)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    console.warn('❌ Blocked by CORS:', origin);
-    return callback(null, false); // ❗ بدون Error
+    // Log blocked origin and allow it with warning (permissive for debugging)
+    console.warn('⚠️ Origin not in allowedOrigins (allowing anyway):', origin);
+    return callback(null, true); // Allow for now to debug
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // 🔥 ده أهم سطر في الموضوع كله
