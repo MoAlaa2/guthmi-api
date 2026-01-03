@@ -463,17 +463,30 @@ app.use(express.json({
 }) as any);
 app.use(express.urlencoded({ extended: true }) as any);
 
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173',"https://wa-production-d791.up.railway.app"];
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://wa-production-d791.up.railway.app'
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // السماح للـ server-to-server والـ tools
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    console.warn('❌ Blocked by CORS:', origin);
+    return callback(null, false); // ❗ بدون Error
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// 🔥 ده أهم سطر في الموضوع كله
+app.options('*', cors());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
