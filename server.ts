@@ -1422,6 +1422,38 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Password Reset Endpoint (temporary - should be protected in production)
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, newPassword, adminSecret } = req.body;
+  
+  // Simple protection - require a secret
+  if (adminSecret !== process.env.ADMIN_RESET_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: 'Email and newPassword required' });
+  }
+  
+  try {
+    const { rows } = await pool.query('SELECT id, name FROM users WHERE email = $1', [email]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [hashedPassword, email]);
+    
+    console.log('✅ Password reset for:', email);
+    res.json({ success: true, message: 'Password updated' });
+  } catch (err) {
+    console.error('❌ Password reset error:', err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 // Conversations
 app.get('/api/conversations', authenticateToken, async (req, res) => {
   try {
