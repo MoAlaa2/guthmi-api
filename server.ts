@@ -1460,15 +1460,17 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT 
         c.id, c.contact_name as "contactName", c.contact_number as "contactNumber",
-        c.last_message as "lastMessage", c.last_message_at as "lastMessageTimestamp",
+        c.last_message as "lastMessage", 
+        COALESCE(c.last_message_at, CURRENT_TIMESTAMP) as "lastMessageTimestamp",
         c.last_customer_message_at as "lastCustomerMessageTimestamp",
         c.unread_count as "unreadCount", LOWER(c.status) as status, c.assigned_agent_id as "assignedAgentId",
         c.tags, c.window_expires_at as "windowExpiresAt"
       FROM conversations c
-      ORDER BY c.last_message_at DESC
+      ORDER BY c.last_message_at DESC NULLS LAST
     `);
     res.json(rows);
   } catch (err) {
+    console.error('Get conversations error:', err);
     res.status(500).json({ error: 'DB Error' });
   }
 });
