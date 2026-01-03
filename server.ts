@@ -497,6 +497,11 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter as any);
 
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Webhook-specific rate limiter (stricter)
 const webhookLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
