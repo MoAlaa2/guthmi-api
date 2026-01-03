@@ -465,7 +465,8 @@ app.use(express.urlencoded({ extended: true }) as any);
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://wa-production-d791.up.railway.app'
+  'https://wa-production-d791.up.railway.app',
+  'https://wa-zeta.vercel.app'
 ];
 
 app.use(cors({
