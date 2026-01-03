@@ -489,6 +489,14 @@ app.use(cors({
 // 🔥 ده أهم سطر في الموضوع كله
 app.options('*', cors());
 
+// Global request logger for debugging
+app.use((req, res, next) => {
+  if (req.path.includes('/api/')) {
+    console.log(`📥 ${req.method} ${req.path} | Origin: ${req.headers.origin || 'none'} | Auth: ${req.headers.authorization ? 'present' : 'missing'}`);
+  }
+  next();
+});
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 1000, 
