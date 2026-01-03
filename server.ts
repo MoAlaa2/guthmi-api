@@ -510,10 +510,17 @@ const webhookLimiter = rateLimit({
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  
+  if (!token) {
+    console.warn('❌ No token provided:', req.method, req.path, 'Origin:', req.headers.origin);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.status(403).json({ error: 'Forbidden' });
+    if (err) {
+      console.warn('❌ Token verification failed:', err.message, 'for:', req.path);
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     req.user = user;
     next();
   });
@@ -1366,13 +1373,26 @@ app.post('/api/webhooks/whatsapp', verifySignature, webhookLimiter, async (req, 
 // Auth
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  console.log('🔐 Login attempt:', { email, hasPassword: !!password, origin: req.headers.origin });
+  
+  if (!email || !password) {
+    console.warn('❌ Missing credentials in request body');
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+  
   try {
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    if (rows.length === 0) {
+      console.warn('❌ User not found:', email);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const user = rows[0];
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      console.warn('❌ Invalid password for:', email);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name, email: user.email },
@@ -1380,8 +1400,10 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '12h' }
     );
     delete user.password_hash;
+    console.log('✅ Login successful:', email);
     res.json({ token, user });
   } catch (err) {
+    console.error('❌ Login error:', err);
     res.status(500).json({ error: 'Internal error' });
   }
 });
