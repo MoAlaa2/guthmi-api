@@ -463,7 +463,7 @@ app.use(express.json({
 }) as any);
 app.use(express.urlencoded({ extended: true }) as any);
 
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173'];
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173',"https://wa-production-d791.up.railway.app"];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
